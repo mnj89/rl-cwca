@@ -1,0 +1,33 @@
+# Generated outputs (run full_eval.py to reproduce)
+results/
+
+# SUMO contact data (large binary, not tracked — see data/README.md)
+data/sumo_sim/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+*.so
+
+# Environments
+.env
+.venv
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+*.swp

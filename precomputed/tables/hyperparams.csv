@@ -1,0 +1,11 @@
+Parameter,Value
+DQN Hidden Dims,128→64
+Learning Rate,1e-3
+ε-decay,1.0→0.05 linear
+Training Episodes,45
+Replay Buffer,"12,000"
+Target Update,Every 5 eps
+Batch Size,64
+Priority Multipliers,"{0.2, 0.5, 1.0, 2.0, 5.0}"
+Discount Factor,0.95
+Gradient Clip,1.0
