@@ -1,5 +1,0 @@
-Comparison,U-statistic,p-value,Significance
-RL-GACA vs CFCA,20.0,0.0754,ns
-RL-GACA vs SAA,17.0,0.2103,ns
-RL-GACA vs Greedy,21.0,0.0476,*
-RL-GACA vs Popular Cache,24.0,0.0079,**
