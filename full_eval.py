@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ═══════════════════════════════════════════════════════════════
-  RL-GACA: Complete Publication Evaluation Suite
+  RL-GACA: Complete Evaluation Suite
   All plots: 300 DPI PDF + PNG preview
   All tables: LaTeX booktabs + CSV
 ═══════════════════════════════════════════════════════════════
