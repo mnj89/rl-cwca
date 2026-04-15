@@ -2,7 +2,6 @@
 """
 ═══════════════════════════════════════════════════════════════
   RL-GACA: Complete Publication Evaluation Suite
-  Target: IEEE Access / Top-Tier Journal
   All plots: 300 DPI PDF + PNG preview
   All tables: LaTeX booktabs + CSV
 ═══════════════════════════════════════════════════════════════
