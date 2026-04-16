@@ -37,7 +37,7 @@ def sf(fig,n):
 # ══════════════════════════════════════════════════════════════
 # SIMULATION ENGINE (SUMO-based)
 # ══════════════════════════════════════════════════════════════
-data=np.load('data/sumo_sim/contact_data.npz',allow_pickle=True)
+data=np.load('sumo_sim/contact_data.npz',allow_pickle=True)
 ACT=data['avg_ct'];NCT=data['n_ct'];VT=list(data['vtypes_arr']);ND=len(VT)
 SD=30;MULTS=np.array([.2,.5,1.,2.,5.])
 print(f"Loaded SUMO: {ND} devices\n")
@@ -183,9 +183,9 @@ agents={}
 curves={}
 configs={
     'RL-GACA':    (b_gravity, 'full','pri'),
-    'DDPG-Cache': (b_interest,'weak','pri'),
-    'A2C-Cache':  (b_weak,   'weak','rand'),
-    'Vanilla DQN':(b_pop,    'none','rand'),
+    'DQN-Interest': (b_interest,'weak','pri'),
+    'DQN-Weak':  (b_weak,   'weak','rand'),
+    'DQN-Pop':(b_pop,    'none','rand'),
 }
 for nm,(bfn,filt,uo) in configs.items():
     t0=time.time()
@@ -213,21 +213,21 @@ for nm,cfg in abl_configs.items():
 
 # Helper: run one config
 ORD_H=['RL-GACA','CFCA','SAA','Greedy','Popular Cache']
-ORD_DRL=['RL-GACA','DDPG-Cache','A2C-Cache','Vanilla DQN','CFCA','SAA']
+ORD_DRL=['RL-GACA','DQN-Interest','DQN-Weak','DQN-Pop','CFCA','SAA']
 SH={'RL-GACA':{'c':PAL[3],'m':'*','ls':'-','ms':11,'lw':2.5},
     'CFCA':{'c':PAL[0],'m':'o','ls':'--','ms':7,'lw':2},
     'SAA':{'c':PAL[2],'m':'^','ls':'-.','ms':7,'lw':2},
     'Greedy':{'c':PAL[4],'m':'D','ls':':','ms':6,'lw':1.8},
     'Popular Cache':{'c':PAL[7],'m':'v','ls':':','ms':6,'lw':1.8},
-    'DDPG-Cache':{'c':PAL[5],'m':'h','ls':'-.','ms':8,'lw':2},
-    'A2C-Cache':{'c':PAL[1],'m':'p','ls':'--','ms':8,'lw':2},
-    'Vanilla DQN':{'c':PAL[6],'m':'X','ls':':','ms':8,'lw':1.8}}
+    'DQN-Interest':{'c':PAL[5],'m':'h','ls':'-.','ms':8,'lw':2},
+    'DQN-Weak':{'c':PAL[1],'m':'p','ls':'--','ms':8,'lw':2},
+    'DQN-Pop':{'c':PAL[6],'m':'X','ls':':','ms':8,'lw':1.8}}
 
 def run_one(F,gm,cm,fm,br,seed):
     res={}
     for nm,fn in [('Popular Cache',a_pop),('Greedy',a_greedy),('SAA',a_saa),('CFCA',a_cfca)]:
         s=Sim(F,gm,cm,fm,br,seed);fn(s);res[nm]=s.exchange()
-    for nm in ['RL-GACA','DDPG-Cache','A2C-Cache','Vanilla DQN']:
+    for nm in ['RL-GACA','DQN-Interest','DQN-Weak','DQN-Pop']:
         bfn,filt,uo=configs[nm];uord=o_pri if uo=='pri' else o_rand
         s=Sim(F,gm,cm,fm,br,seed);deploy_agent(s,agents[nm],bfn,filt,uord);res[nm]=s.exchange()
     return res
@@ -249,7 +249,7 @@ print("\n"+"="*60);print("PHASE 2: Generating all figures");print("="*60)
 print("\n>>> Fig 1: Training dynamics")
 fig,(ax1,ax2)=plt.subplots(1,2,figsize=(12,4.5))
 w=5
-for nm in ['RL-GACA','A2C-Cache','DDPG-Cache','Vanilla DQN']:
+for nm in ['RL-GACA','DQN-Weak','DQN-Interest','DQN-Pop']:
     rws=curves[nm];sm=np.convolve(rws,np.ones(w)/w,'valid')
     ax1.plot(range(w-1,len(rws)),sm,color=SH[nm]['c'],lw=2,label=nm)
 ax1.set_xlabel('Episode');ax1.set_ylabel('Reward');ax1.set_title('DRL Training Convergence');ax1.legend()
@@ -448,7 +448,7 @@ ax.legend(loc='lower right');sf(fig,'fig16_drl_offload_cache')
 print(">>> Fig 17: DRL improvement bars")
 r17=run_seeds(250,.6,2000,80,1,3)
 ro17=np.mean(r17['RL-GACA']['off']);rc17=np.mean(r17['RL-GACA']['chr'])
-bl17=['CFCA','SAA','A2C-Cache','DDPG-Cache','Vanilla DQN']
+bl17=['CFCA','SAA','DQN-Weak','DQN-Interest','DQN-Pop']
 fig,ax=plt.subplots(figsize=(10,5.5));x=np.arange(len(bl17));w=.35
 ov17=[(ro17-np.mean(r17[b]['off']))/max(np.mean(r17[b]['off']),.001)*100 for b in bl17]
 cv17=[(rc17-np.mean(r17[b]['chr']))/max(np.mean(r17[b]['chr']),.001)*100 for b in bl17]
@@ -462,7 +462,7 @@ sf(fig,'fig17_drl_improvement')
 # ── Fig 18: DRL Training Curves ──────────────────────────────
 print(">>> Fig 18: DRL training curves")
 fig,ax=plt.subplots(figsize=(8,5));w=5
-for nm in ['RL-GACA','A2C-Cache','DDPG-Cache','Vanilla DQN']:
+for nm in ['RL-GACA','DQN-Weak','DQN-Interest','DQN-Pop']:
     rws=curves[nm];sm=np.convolve(rws,np.ones(w)/w,'valid')
     ax.plot(range(w-1,len(rws)),sm,color=SH[nm]['c'],lw=2,label=nm)
 ax.set_xlabel('Episode');ax.set_ylabel('Reward');ax.set_title('DRL Training Convergence');ax.legend();sf(fig,'fig18_drl_training')
@@ -508,7 +508,7 @@ print("\n"+"="*60);print("PHASE 3: LaTeX tables");print("="*60)
 
 # Table 1: Main results
 rows=[]
-for a in ORD_H+['DDPG-Cache','A2C-Cache','Vanilla DQN']:
+for a in ORD_H+['DQN-Interest','DQN-Weak','DQN-Pop']:
     data_src=r8 if a in ORD_H else r17
     om=np.mean(data_src[a]['off']);os_=np.std(data_src[a]['off'])
     cm=np.mean(data_src[a]['chr']);cs_=np.std(data_src[a]['chr'])
