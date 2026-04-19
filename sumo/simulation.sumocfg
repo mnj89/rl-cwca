@@ -1,0 +1,13 @@
+<configuration>
+  <input>
+    <net-file value="london.net.xml"/>
+    <route-files value="routes.rou.xml"/>
+  </input>
+  <time>
+    <begin value="0"/>
+    <end value="1000"/>
+  </time>
+  <processing>
+    <ignore-route-errors value="true"/>
+  </processing>
+</configuration>
