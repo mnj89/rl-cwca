@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-═══════════════════════════════════════════════════════════════
-  RL-GACA: Complete Experimental Pipeline  (ICT Express Rev. 3)
-  ───────────────────────────────────────────────────────────
+══════════════════════════════════════════
+  RL-CWCA: Complete Experimental Pipeline  
+  ────────────────────────────────────────
   Run management:
     Each execution creates a timestamped run directory:
       results/runs/<YYYYMMDD_HHMMSS>/figures/
@@ -32,7 +32,7 @@
     to s.gt * 1.5.
 
   Aligned threshold (Rev. 3):
-    RL-GACA-aligned (I_uc >= 0.05) is now evaluated across all
+    RL-CWCA-aligned (I_uc >= 0.05) is now evaluated across all
     cache sizes and reported in Table 8.
 ═══════════════════════════════════════════════════════════════
 """
@@ -186,12 +186,15 @@ set_seed(GLOBAL_SEED)
 # ── Publication style ──────────────────────────────────────────
 plt.rcParams.update({
     'font.family':       'serif',
-    'font.size':         13,
-    'axes.titlesize':    14,
-    'axes.labelsize':    13,
-    'xtick.labelsize':   11,
-    'ytick.labelsize':   11,
-    'legend.fontsize':   11,
+    'font.size':         15,
+    'font.weight':       'bold',
+    'axes.titlesize':    16,
+    'axes.titleweight':  'bold',
+    'axes.labelsize':    15,
+    'axes.labelweight':  'bold',
+    'xtick.labelsize':   13,
+    'ytick.labelsize':   13,
+    'legend.fontsize':   13,
     'legend.framealpha': 0.93,
     'legend.edgecolor':  '#bbbbbb',
     'legend.borderpad':  0.6,
@@ -209,7 +212,7 @@ plt.rcParams.update({
 
 # Colorblind-safe, consistent per-algorithm styles
 S = {
-    'RL-GACA':       dict(color='#E63946', marker='*',  ls='-',   lw=2.8, ms=11, z=5),
+    'RL-CWCA':       dict(color='#E63946', marker='*',  ls='-',   lw=2.8, ms=11, z=5),
     'DQN-Interest':  dict(color='#1D6FA4', marker='o',  ls='--',  lw=2.1, ms=6,  z=4),
     'DQN-Weak':      dict(color='#2CA02C', marker='^',  ls='-.',  lw=2.1, ms=6,  z=4),
     'DQN-Pop':       dict(color='#FF7F0E', marker='s',  ls=':',   lw=1.9, ms=5,  z=3),
@@ -219,7 +222,7 @@ S = {
     'Popular Cache': dict(color='#8C8C8C', marker='v',  ls=':',   lw=1.7, ms=5,  z=2),
     'A2C':           dict(color='#17BECF', marker='p',  ls='--',  lw=2.1, ms=7,  z=3),
     'PPO':           dict(color='#BCBD22', marker='h',  ls='-.',  lw=2.1, ms=7,  z=3),
-    'DQN (gravity)': dict(color='#8B4513', marker='D',  ls='--',  lw=2.0, ms=6,  z=3),
+    'DQN (CW score)': dict(color='#8B4513', marker='D',  ls='--',  lw=2.0, ms=6,  z=3),
 }
 
 def savefig(fig, name):
@@ -429,7 +432,7 @@ class ValueNet(nn.Module):
 # ──────────────────────────────────────────────────────────────
 # 4. SCORING FUNCTIONS & ORDERING
 # ──────────────────────────────────────────────────────────────
-def b_gravity(s, u, f):  return s.fp[f] * s.ints[u, s.fc[f]] * (1 + s.pri[u] * 5)
+def b_cw_score(s, u, f):  return s.fp[f] * s.ints[u, s.fc[f]] * (1 + s.pri[u] * 5)
 def b_interest(s, u, f): return s.fp[f] * (1 + s.ints[u, s.fc[f]] * 2)
 def b_weak(s, u, f):     return s.fp[f] * (1 + s.ints[u, s.fc[f]] * .5)
 def b_pop(s, u, f):      return s.fp[f]
@@ -443,12 +446,12 @@ def norm_pri(raw_pri):
 
     Why this is needed
     ──────────────────
-    b_gravity computes:  G(u,f) = Pf * I_{u,c} * (1 + κ * π̄_u)   κ=5
+    b_cw_score computes:  G(u,f) = Pf * I_{u,c} * (1 + κ * π̄_u)   κ=5
 
     κ=5 was calibrated so the pull term spans 1–6 on Marylebone, where
     π̄_u ∈ [0.05, 0.80].  On T-Drive (sparse taxi contacts) π̄_u ∈ [0.01, 0.08],
     so the pull term only spans 1.05–1.40 — a 1.33× range instead of 4×.
-    The gravity score loses almost all contact-based differentiation.
+    The contact-weighted (CW) score loses almost all contact-based differentiation.
 
     Normalising π̄_u to [0, 1] per dataset restores the pull term to 1–6
     regardless of the dataset's absolute contact frequencies, so the gravity
@@ -463,7 +466,7 @@ def norm_pri(raw_pri):
 # filt: 'full'=0.005 threshold, 'aligned'=0.05 threshold, 'none'=no filter
 # Controller key: 'a2c' | 'ppo' | 'dqn'
 AGENT_CONFIGS = {
-    'RL-GACA':      (b_gravity,  'full',    'pri', 'a2c'),  # A2C is primary controller
+    'RL-CWCA':      (b_cw_score,  'full',    'pri', 'a2c'),  # A2C is primary controller
     'DQN-Interest': (b_interest, 'aligned', 'pri', 'dqn'),
     'DQN-Weak':     (b_weak,     'aligned', 'rand','dqn'),
     'DQN-Pop':      (b_pop,      'none',    'rand','dqn'),
@@ -473,7 +476,7 @@ AGENT_CONFIGS = {
 # ──────────────────────────────────────────────────────────────
 # ── Checkpoint support ──────────────────────────────────────────
 _CKPT = Path('results/checkpoints/agents.pt')
-_BFN_MAP  = {'b_gravity': b_gravity, 'b_interest': b_interest,
+_BFN_MAP  = {'b_cw_score': b_cw_score, 'b_interest': b_interest,
              'b_weak': b_weak, 'b_pop': b_pop}
 _UORD_MAP = {'o_pri': o_pri, 'o_rand': o_rand}
 _NET_MAP  = {'PolicyNet': PolicyNet, 'DQNet': DQNet}
@@ -505,7 +508,7 @@ def _load_checkpoint():
 # 5. TRAINING FUNCTIONS
 # ──────────────────────────────────────────────────────────────
 def _candidates(s, filt, uord, topF=28):
-    """Yield (user, file, state_vec, base_gravity) candidate pairs."""
+    """Yield (user, file, state_vec, base_cw_score) candidate pairs."""
     cands = []
     for u in uord(s)[:min(s.N, 55)]:
         if filt == 'none':
@@ -731,10 +734,10 @@ if _P13_ONLY:
     print("  [SKIP] Phase 1 — loaded from checkpoint")
 else:
     ABL_CONFIGS = {
-        'w/o Interest Filter':  (b_gravity, 'none',    'pri'),
-        'w/o Speed Constraint': (b_gravity, 'nospeed', 'pri'),
-        'w/o Priority Order':   (b_gravity, 'full',    'rand'),
-        'w/o Gravity (DQN+Pop)':(b_pop,    'full',    'pri'),
+        'w/o Interest Filter':  (b_cw_score, 'none',    'pri'),
+        'w/o Speed Constraint': (b_cw_score, 'nospeed', 'pri'),
+        'w/o Priority Order':   (b_cw_score, 'full',    'rand'),
+        'w/o CW Score (DQN+Pop)':(b_pop,    'full',    'pri'),
     }
     
     uord_map = {'pri': o_pri, 'rand': o_rand}
@@ -753,24 +756,24 @@ else:
         curves[name] = rews
         tqdm.write(f"  {name} [{ctrl.upper()}]: {time.time()-t0:.0f}s  off={max(rews)/300:.4f}")
     
-    # Controller comparison: DQN and PPO with gravity base
-    print("\nTraining DQN and PPO (gravity base, for controller comparison)...")
-    for ctrl_name, trainer_fn in tqdm([('DQN (gravity)', train_dqn), ('PPO', train_ppo)],
+    # Controller comparison: DQN and PPO with CW score base
+    print("\nTraining DQN and PPO (CW score base, for controller comparison)...")
+    for ctrl_name, trainer_fn in tqdm([('DQN (CW score)', train_dqn), ('PPO', train_ppo)],
                                         desc='Phase 1 ctrl', ncols=80):
         t0 = time.time()
         s  = Sim(250, .6, 1000, 80, 1, seed=GLOBAL_SEED)
-        net, rews = trainer_fn(s, 45, b_gravity, 'full', o_pri,
+        net, rews = trainer_fn(s, 45, b_cw_score, 'full', o_pri,
                                 seed=GLOBAL_SEED, desc=ctrl_name)
-        agents[ctrl_name] = (net, b_gravity, 'full', o_pri)
+        agents[ctrl_name] = (net, b_cw_score, 'full', o_pri)
         curves[ctrl_name] = rews
         tqdm.write(f"  {ctrl_name}: {time.time()-t0:.0f}s")
     
-    # RL-GACA with aligned threshold (EXP 2)
-    print("\nTraining RL-GACA (aligned threshold 0.05)...")
+    # RL-CWCA with aligned threshold (EXP 2)
+    print("\nTraining RL-CWCA (aligned threshold 0.05)...")
     s = Sim(250, .6, 1000, 80, 1, seed=GLOBAL_SEED)
-    net_aln, _ = train_a2c(s, 45, b_gravity, 'aligned', o_pri,
-                             seed=GLOBAL_SEED, desc='RL-GACA-aligned')
-    agents['RL-GACA-aligned'] = (net_aln, b_gravity, 'aligned', o_pri)
+    net_aln, _ = train_a2c(s, 45, b_cw_score, 'aligned', o_pri,
+                             seed=GLOBAL_SEED, desc='RL-CWCA-aligned')
+    agents['RL-CWCA-aligned'] = (net_aln, b_cw_score, 'aligned', o_pri)
     
     # Ablation variants
     print("\nTraining ablation variants...")
@@ -797,7 +800,7 @@ if not _P13_ONLY:
     print("PHASE 2: Main evaluation (3 seeds)")
     print("=" * 60)
     
-    MAIN_ALGOS = ['RL-GACA', 'DQN-Interest', 'DQN-Weak', 'DQN-Pop',
+    MAIN_ALGOS = ['RL-CWCA', 'DQN-Interest', 'DQN-Weak', 'DQN-Pop',
                   'CFCA', 'SAA', 'Greedy', 'Popular Cache']
     HEURISTICS = {'CFCA': a_cfca, 'SAA': a_saa, 'Greedy': a_greedy, 'Popular Cache': a_pop}
     
@@ -829,7 +832,7 @@ if not _P13_ONLY:
     print("\n>>> Cache size sweep")
     CACHE_SIZES = [500, 750, 1000, 1500, 2000]
     # Include aligned variant in sweep for Table 8 (reviewer request: aligned at 2 GB)
-    SWEEP_ALGOS = MAIN_ALGOS + ['RL-GACA-aligned']
+    SWEEP_ALGOS = MAIN_ALGOS + ['RL-CWCA-aligned']
     cache_res = {a: defaultdict(lambda: defaultdict(list)) for a in SWEEP_ALGOS}
     _p3 = tqdm(CACHE_SIZES, desc='Phase 3 cache', ncols=80)
     for cm in _p3:
@@ -846,7 +849,7 @@ if not _P13_ONLY:
     
     _rm.mark_phase(RUN_DIR, 'phase3_cache_sweep',
                    {str(cm): {nm: f"{np.mean(cache_res[nm][cm]['off']):.4f}"
-                              for nm in ['RL-GACA','CFCA','RL-GACA-aligned']}
+                              for nm in ['RL-CWCA','CFCA','RL-CWCA-aligned']}
                     for cm in [1000, 2000]})
     
     
@@ -855,14 +858,14 @@ if not _P13_ONLY:
     # ──────────────────────────────────────────────────────────────
     print("\n>>> Ablation study")
     abl_res = {}
-    # Full RL-GACA
+    # Full RL-CWCA
     r = defaultdict(list)
-    for sd in tqdm(MAIN_SEEDS, desc='  Full RL-GACA', leave=False, ncols=60):
+    for sd in tqdm(MAIN_SEEDS, desc='  Full RL-CWCA', leave=False, ncols=60):
         s = Sim(250, .6, 1000, 80, 1, seed=sd)
-        net, bfn, filt, uo = agents['RL-GACA']
+        net, bfn, filt, uo = agents['RL-CWCA']
         deploy(s, net, bfn, filt, uo)
         for k, v in s.exchange().items(): r[k].append(v)
-    abl_res['Full\nRL-GACA'] = (np.mean(r['off']), np.std(r['off']))
+    abl_res['Full\nRL-CWCA'] = (np.mean(r['off']), np.std(r['off']))
     
     # w/o DQN = CFCA proxy
     r = defaultdict(list)
@@ -887,7 +890,7 @@ if not _P13_ONLY:
     r = defaultdict(list)
     for sd in tqdm(MAIN_SEEDS, desc='  Aligned thresh', leave=False, ncols=60):
         s = Sim(250, .6, 1000, 80, 1, seed=sd)
-        net, bfn, filt, uo = agents['RL-GACA-aligned']
+        net, bfn, filt, uo = agents['RL-CWCA-aligned']
         deploy(s, net, bfn, filt, uo)
         for k, v in s.exchange().items(): r[k].append(v)
     abl_res['Aligned\nThreshold'] = (np.mean(r['off']), np.std(r['off']))
@@ -903,7 +906,7 @@ if not _P13_ONLY:
     # PHASE 5: SENSITIVITY SWEEPS
     # ──────────────────────────────────────────────────────────────
     print("\n>>> Sensitivity sweeps")
-    SHOW = ['RL-GACA', 'DQN-Interest', 'CFCA', 'SAA', 'Greedy', 'Popular Cache']
+    SHOW = ['RL-CWCA', 'DQN-Interest', 'CFCA', 'SAA', 'Greedy', 'Popular Cache']
     
     # Zipf γ
     ZIPF_VALS = [0.6, 0.8, 1.0, 1.2]
@@ -948,17 +951,17 @@ if not _P13_ONLY:
     hp_offs = []
     for n_ep in tqdm(EP_VALS, desc='  HP episodes', ncols=80):
         s = Sim(250, .6, 1000, 80, 1, seed=GLOBAL_SEED)
-        net_hp, _ = train_dqn(s, n_ep, b_gravity, 'full', o_pri,
+        net_hp, _ = train_dqn(s, n_ep, b_cw_score, 'full', o_pri,
                                 seed=GLOBAL_SEED, desc=f'HP ep={n_ep}')
         s2 = Sim(250, .6, 1000, 80, 1, seed=GLOBAL_SEED)
-        deploy(s2, net_hp, b_gravity, 'full', o_pri)
+        deploy(s2, net_hp, b_cw_score, 'full', o_pri)
         hp_offs.append(s2.exchange()['off'])
         tqdm.write(f"  {n_ep} eps: {hp_offs[-1]:.4f}")
     
     # NNPM: net profit margin
     print(">>> NNPM computation")
     C_NET = 1.0
-    nnpm_res = {a: [] for a in ['RL-GACA', 'CFCA', 'SAA', 'Greedy', 'Popular Cache']}
+    nnpm_res = {a: [] for a in ['RL-CWCA', 'CFCA', 'SAA', 'Greedy', 'Popular Cache']}
     for cm in tqdm(CACHE_SIZES, desc='  NNPM', ncols=80):
         for name in nnpm_res:
             dd_m = np.mean(cache_res[name][cm]['dd'])
@@ -977,7 +980,7 @@ if not _P13_ONLY:
     # PHASE 6: 10-SEED SIGNIFICANCE  (EXP 3)
     # ──────────────────────────────────────────────────────────────
     print("\n>>> 10-seed significance test")
-    sig_res = {a: [] for a in ['RL-GACA', 'CFCA', 'SAA', 'Greedy', 'Popular Cache']}
+    sig_res = {a: [] for a in ['RL-CWCA', 'CFCA', 'SAA', 'Greedy', 'Popular Cache']}
     for sd in tqdm(SIG_SEEDS, desc='Phase 6 sig seeds', ncols=80):
         for name in sig_res:
             s = Sim(250, .6, 1000, 80, 1, seed=sd)
@@ -1004,7 +1007,7 @@ if not _P13_ONLY:
     # ──────────────────────────────────────────────────────────────
     print("\n>>> Contention sensitivity")
     COLL_FACTORS = [1.00, 0.85, 0.70, 0.55, 0.40]
-    coll_res = {a: [] for a in ['RL-GACA', 'CFCA', 'SAA']}
+    coll_res = {a: [] for a in ['RL-CWCA', 'CFCA', 'SAA']}
     for cf in tqdm(COLL_FACTORS, desc='Phase 7 contention', ncols=80):
         for name in coll_res:
             offs_cf = []
@@ -1022,7 +1025,7 @@ if not _P13_ONLY:
     # PHASE 8: COVERAGE & FAIRNESS  (3 seeds)
     # ──────────────────────────────────────────────────────────────
     print("\n>>> Coverage & fairness")
-    COV_ALGOS = ['RL-GACA', 'SAA', 'CFCA', 'Greedy', 'Popular Cache']
+    COV_ALGOS = ['RL-CWCA', 'SAA', 'CFCA', 'Greedy', 'Popular Cache']
     cov_res = {a: defaultdict(list) for a in COV_ALGOS}
     for sd in tqdm(MAIN_SEEDS, desc='Phase 8 coverage', ncols=80):
         for name in COV_ALGOS:
@@ -1042,7 +1045,7 @@ if not _P13_ONLY:
     # ──────────────────────────────────────────────────────────────
     print("\n>>> Scalability")
     FLIB = [100, 150, 200, 300, 400]
-    flib_res = {a: [] for a in ['RL-GACA', 'CFCA']}
+    flib_res = {a: [] for a in ['RL-CWCA', 'CFCA']}
     for fl in tqdm(FLIB, desc='Phase 9 scalability', ncols=80):
         for name in flib_res:
             offs_fl = []
@@ -1065,7 +1068,7 @@ if not _P13_ONLY:
     for cm in _p10:
         _p10.set_postfix(cache=f'{cm}MB')
         ctrl_res[cm] = {}
-        for name in tqdm(['RL-GACA', 'DQN (gravity)', 'PPO', 'CFCA'],
+        for name in tqdm(['RL-CWCA', 'DQN (CW score)', 'PPO', 'CFCA'],
                          desc='  controllers', leave=False, ncols=60):
             offs = []
             for sd in MAIN_SEEDS:
@@ -1090,32 +1093,33 @@ if not _P13_ONLY:
     # ── fig01: Training curves ──
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 4.8))
     w = 5
-    drl_agents = ['RL-GACA', 'DQN (gravity)', 'DQN-Interest', 'DQN-Weak', 'DQN-Pop']
+    drl_agents = ['RL-CWCA', 'DQN (CW score)', 'DQN-Interest', 'DQN-Weak', 'DQN-Pop']
     for nm in drl_agents:
         rw = curves[nm]
         sm = np.convolve(rw, np.ones(w)/w, 'valid')
         ax1.plot(range(w-1, len(rw)), sm, label=nm,
                  color=S[nm]['color'], lw=S[nm]['lw'], ls=S[nm]['ls'], zorder=S[nm]['z'])
     ax1.set_xlabel('Episode'); ax1.set_ylabel('Reward (smoothed, w=5)')
-    ax1.set_title('DRL Training Convergence'); ax1.legend(loc='lower right')
-    rw = curves['RL-GACA']
+    ax1.set_title('DRL Training Convergence')
+    ax1.legend(loc='upper center', bbox_to_anchor=(0.5, -0.25), ncol=3, frameon=True)
+    rw = curves['RL-CWCA']
     std_c = [np.std(rw[max(0, i-9):i+1]) for i in range(len(rw))]
-    ax2.plot(std_c, color=S['RL-GACA']['color'], lw=2.2)
-    ax2.fill_between(range(len(std_c)), std_c, alpha=0.18, color=S['RL-GACA']['color'])
+    ax2.plot(std_c, color=S['RL-CWCA']['color'], lw=2.2)
+    ax2.fill_between(range(len(std_c)), std_c, alpha=0.18, color=S['RL-CWCA']['color'])
     ax2.set_xlabel('Episode'); ax2.set_ylabel('Reward Std Dev (w=10)')
-    ax2.set_title('RL-GACA Training Stability')
-    plt.tight_layout(); savefig(fig, 'fig01_training_curves')
+    ax2.set_title('RL-CWCA Training Stability')
+    plt.tight_layout(rect=[0, 0.15, 1, 1]); savefig(fig, 'fig01_training_curves')
     _fig_pbar.update(1)
     
     # ── fig02: Offloading vs Cache Size ──
-    DRL_ORDER = ['RL-GACA', 'DQN-Interest', 'DQN-Weak', 'DQN-Pop', 'CFCA', 'SAA']
+    DRL_ORDER = ['RL-CWCA', 'DQN-Interest', 'DQN-Weak', 'DQN-Pop', 'CFCA', 'SAA']
     fig, ax = plt.subplots(figsize=(8.5, 5.5))
     for nm in DRL_ORDER:
         m = [np.mean(cache_res[nm][c]['off']) for c in CACHE_SIZES]
         sd= [np.std(cache_res[nm][c]['off'])  for c in CACHE_SIZES]
         ax.errorbar(CACHE_SIZES, m, yerr=sd, label=nm, **ep(nm))
     ax.set_xlabel('Cache Size (MB)'); ax.set_ylabel('Offloading Ratio')
-    ax.set_title('Offloading vs Cache Size\n(SUMO, 172 devices, 3 seeds)')
+    ax.set_title('Offloading Ratio vs Cache Size')
     ax.set_xticks(CACHE_SIZES[::1])
     ax.legend(ncol=2, loc='lower right')
     plt.tight_layout(); savefig(fig, 'fig02_off_vs_cache')
@@ -1128,14 +1132,14 @@ if not _P13_ONLY:
         sd= [np.std(cache_res[nm][c]['chr'])  for c in CACHE_SIZES]
         ax.errorbar(CACHE_SIZES, m, yerr=sd, label=nm, **ep(nm))
     ax.set_xlabel('Cache Size (MB)'); ax.set_ylabel('Cache Hit Ratio (CHR)')
-    ax.set_title('CHR vs Cache Size\n(SUMO, 172 devices, 3 seeds)')
+    ax.set_title('Cache Hit Ratio vs Cache Size')
     ax.legend(ncol=2, loc='lower right')
     plt.tight_layout(); savefig(fig, 'fig03_chr_vs_cache')
     _fig_pbar.update(1)
     
     # ── fig04: Improvement bars ──
-    RL_OFF = np.mean(main_res['RL-GACA']['off'])
-    RL_CHR = np.mean(main_res['RL-GACA']['chr'])
+    RL_OFF = np.mean(main_res['RL-CWCA']['off'])
+    RL_CHR = np.mean(main_res['RL-CWCA']['chr'])
     HEUR_NAMES = ['CFCA', 'SAA', 'Greedy', 'Popular Cache']
     imp_o = [(RL_OFF - np.mean(main_res[b]['off'])) / np.mean(main_res[b]['off']) * 100
              for b in HEUR_NAMES]
@@ -1150,10 +1154,10 @@ if not _P13_ONLY:
     for bar in list(b1) + list(b2):
         h = bar.get_height()
         ax.text(bar.get_x()+bar.get_width()/2, h+0.35,
-                f'{h:.1f}%', ha='center', va='bottom', fontsize=10, fontweight='bold')
+                f'{h:.1f}%', ha='center', va='bottom', fontsize=12, fontweight='bold')
     ax.set_xticks(x); ax.set_xticklabels(HEUR_NAMES, rotation=12, ha='right')
     ax.set_ylabel('Improvement (%)'); ax.legend()
-    ax.set_title('RL-GACA Improvement at 1 GB\n(same 3 seeds as Table 1, γ=0.6)')
+    ax.set_title('RL-CWCA Improvement over Baselines at 1 GB Cache')
     ax.set_ylim(0, max(imp_o+imp_c)*1.22)
     plt.tight_layout(); savefig(fig, 'fig04_improvement_bars')
     _fig_pbar.update(1)
@@ -1165,7 +1169,7 @@ if not _P13_ONLY:
         sd= [np.std(zipf_res[nm][g])  for g in ZIPF_VALS]
         ax.errorbar(ZIPF_VALS, m, yerr=sd, label=nm, **ep(nm))
     ax.set_xlabel('Zipf Parameter (γ)'); ax.set_ylabel('Offloading Ratio')
-    ax.set_title('Offloading vs File Popularity (γ)\n(cache=1 GB, 3 seeds)')
+    ax.set_title('Offloading Ratio vs File Popularity (Zipf γ)')
     ax.legend(ncol=2, loc='upper left')
     plt.tight_layout(); savefig(fig, 'fig05_zipf_sensitivity')
     _fig_pbar.update(1)
@@ -1175,7 +1179,7 @@ if not _P13_ONLY:
     for nm in SHOW:
         ax.plot(FSIZES, fsize_res[nm], label=nm, **lp(nm))
     ax.set_xlabel('Average File Size (MB)'); ax.set_ylabel('Offloading Ratio')
-    ax.set_title('Offloading vs File Size\n(cache=1 GB, γ=0.6)')
+    ax.set_title('Offloading Ratio vs File Size')
     ax.legend(ncol=2)
     plt.tight_layout(); savefig(fig, 'fig06_fsize_sensitivity')
     _fig_pbar.update(1)
@@ -1190,52 +1194,55 @@ if not _P13_ONLY:
     bars = ax.bar(albl, amn, yerr=asd, color=acols, edgecolor='black',
                   lw=0.8, alpha=0.88, capsize=4)
     bars[0].set_linewidth(2.5)
-    ax.axhline(full_val, color='#E63946', ls='--', lw=1.6, alpha=0.65, label='Full RL-GACA')
+    ax.axhline(full_val, color='#E63946', ls='--', lw=1.6, alpha=0.65, label='Full RL-CWCA')
     for bar, m, s_ in zip(bars, amn, asd):
         ax.text(bar.get_x()+bar.get_width()/2, m+max(asd)*0.5+0.002,
-                f'{m:.4f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
+                f'{m:.4f}', ha='center', va='bottom', fontsize=12, fontweight='bold')
     ax.set_ylabel('Offloading Ratio')
-    ax.set_title('Ablation Study\n(cache=1 GB, γ=0.6, same 3 seeds as Table 1)')
+    ax.set_title('Ablation Study: Component Contribution')
     ax.legend(); ax.set_ylim(min(amn)*0.87, max(amn)*1.10)
     plt.xticks(rotation=10, ha='right')
     plt.tight_layout(); savefig(fig, 'fig07_ablation')
     _fig_pbar.update(1)
     
     # ── fig08: Significance matrix ──
+    from matplotlib.colors import LinearSegmentedColormap
+    _navy_cmap = LinearSegmentedColormap.from_list('white_navy', ['#ffffff', '#0a2756'], N=256)
     fig, ax = plt.subplots(figsize=(7.5, 6.2))
-    im = ax.imshow(SIG_P, cmap='RdYlGn_r', vmin=0, vmax=0.12,
+    im = ax.imshow(SIG_P, cmap=_navy_cmap, vmin=0, vmax=0.12,
                    interpolation='nearest', aspect='auto')
     cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-    cbar.set_label('p-value', fontsize=11)
+    cbar.set_label('p-value', fontsize=15, fontweight='bold')
+    cbar.ax.tick_params(labelsize=13)
     ax.set_xticks(range(n_sig)); ax.set_yticks(range(n_sig))
-    ax.set_xticklabels(SIG_NAMES, rotation=40, ha='right', fontsize=11)
-    ax.set_yticklabels(SIG_NAMES, fontsize=11)
+    ax.set_xticklabels(SIG_NAMES, rotation=40, ha='right', fontsize=13, fontweight='bold')
+    ax.set_yticklabels(SIG_NAMES, fontsize=13, fontweight='bold')
     for i in range(n_sig):
         for j in range(n_sig):
             p = SIG_P[i, j]
             sig = '***' if p<0.001 else ('**' if p<0.01 else ('*' if p<0.05 else 'ns'))
-            tc = 'white' if p < 0.03 else 'black'
+            tc = 'white' if p > 0.06 else 'black'
             ax.text(j, i, f'{p:.3f}\n{sig}', ha='center', va='center',
-                    fontsize=9, color=tc, fontweight='bold')
-    ax.set_title('Statistical Significance (Mann-Whitney U, 10 seeds)', pad=10)
+                    fontsize=13, color=tc, fontweight='bold')
+    ax.set_title('Pairwise Statistical Significance (Mann-Whitney U Test)', pad=10)
     plt.tight_layout(); savefig(fig, 'fig08_significance')
     _fig_pbar.update(1)
     
     # ── fig09: Scalability ──
     fig, ax = plt.subplots(figsize=(7.5, 5.0))
-    for nm in ['RL-GACA', 'CFCA']:
+    for nm in ['RL-CWCA', 'CFCA']:
         ax.plot(FLIB, flib_res[nm], label=nm, **lp(nm))
-    ax.fill_between(FLIB, flib_res['CFCA'], flib_res['RL-GACA'],
+    ax.fill_between(FLIB, flib_res['CFCA'], flib_res['RL-CWCA'],
                     alpha=0.13, color='#E63946', label='Advantage gap')
     ax.set_xlabel('File Library Size (F)'); ax.set_ylabel('Offloading Ratio')
-    ax.set_title('Scalability: Offloading vs File Library Size\n(cache=1 GB, γ=0.6)')
+    ax.set_title('Scalability: Offloading Ratio vs File Library Size')
     ax.legend()
     plt.tight_layout(); savefig(fig, 'fig09_scalability')
     _fig_pbar.update(1)
     
     # ── fig10: Controller comparison ──
-    cnames = ['A2C\n(RL-GACA)', 'DQN\n(gravity)', 'PPO', 'CFCA']
-    cmap_  = {'A2C\n(RL-GACA)': 'RL-GACA', 'DQN\n(gravity)': 'DQN (gravity)', 'PPO': 'PPO', 'CFCA': 'CFCA'}
+    cnames = ['A2C\n(RL-CWCA)', 'DQN\n(CW score)', 'PPO', 'CFCA']
+    cmap_  = {'A2C\n(RL-CWCA)': 'RL-CWCA', 'DQN\n(CW score)': 'DQN (CW score)', 'PPO': 'PPO', 'CFCA': 'CFCA'}
     x = np.arange(len(cnames)); bw = 0.36
     m1 = [ctrl_res[1000][cmap_[k]][0] for k in cnames]
     s1 = [ctrl_res[1000][cmap_[k]][1] for k in cnames]
@@ -1249,23 +1256,23 @@ if not _P13_ONLY:
                 color=ccols, edgecolor='black', lw=0.7, alpha=0.50, capsize=4, hatch='//')
     for bar, m in zip(list(b1)+list(b2), m1+m2):
         ax.text(bar.get_x()+bar.get_width()/2, m+0.005,
-                f'{m:.3f}', ha='center', va='bottom', fontsize=9.5)
+                f'{m:.3f}', ha='center', va='bottom', fontsize=11.5)
     ax.set_xticks(x); ax.set_xticklabels(cnames)
     ax.set_ylabel('Offloading Ratio')
-    ax.set_title('Controller Comparison (Gravity Base Fixed)\n(same 3 seeds as Table 1)')
+    ax.set_title('Controller Comparison: A2C vs DQN vs PPO')
     ax.legend()
     plt.tight_layout(); savefig(fig, 'fig10_controller_compare')
     _fig_pbar.update(1)
     
     # ── fig11: Contention ──
     fig, ax = plt.subplots(figsize=(7.5, 5.0))
-    for nm in ['RL-GACA', 'CFCA', 'SAA']:
+    for nm in ['RL-CWCA', 'CFCA', 'SAA']:
         ax.plot(COLL_FACTORS, coll_res[nm], label=nm, **lp(nm))
     ax.invert_xaxis()
     ax.axvline(1.0, color='gray', ls=':', lw=1.2, alpha=0.6)
     ax.set_xlabel('Collision Factor ρ  (← no contention        heavy contention →)')
     ax.set_ylabel('Offloading Ratio')
-    ax.set_title('Contention Sensitivity\n(cache=1 GB, γ=0.6, ρ=1.0 is baseline model)')
+    ax.set_title('Offloading Ratio under Varying D2D Contention')
     ax.legend()
     plt.tight_layout(); savefig(fig, 'fig11_contention')
     _fig_pbar.update(1)
@@ -1283,21 +1290,22 @@ if not _P13_ONLY:
                  color=ccov, edgecolor='black', lw=0.7, alpha=0.52, hatch='//')
     for bar, v in zip(b1, COVERAGE):
         ax1.text(bar.get_x()+bar.get_width()/2, v+0.5,
-                 f'{v:.1f}%', ha='center', va='bottom', fontsize=10, fontweight='bold')
+                 f'{v:.1f}%', ha='center', va='bottom', fontsize=12, fontweight='bold')
     for bar, v in zip(b2, JAIN):
         ax2.text(bar.get_x()+bar.get_width()/2, v+0.002,
-                 f'{v:.3f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
+                 f'{v:.3f}', ha='center', va='bottom', fontsize=12, fontweight='bold')
     ax1.set_xticks(x); ax1.set_xticklabels(COV_ALGOS, rotation=12, ha='right')
     ax1.set_ylabel('Request Coverage (%)'); ax2.set_ylabel("Jain's Fairness Index")
     ax1.set_ylim(0, max(COVERAGE)*1.25); ax2.set_ylim(0.75, max(JAIN)*1.05)
-    ax1.set_title('Coverage and Fairness\n(cache=1 GB, γ=0.6, 3 seeds)')
+    ax1.set_title('Coverage and Fairness across Algorithms')
     h1, l1 = ax1.get_legend_handles_labels(); h2, l2 = ax2.get_legend_handles_labels()
-    ax1.legend(h1+h2, l1+l2, loc='upper right')
+    ax1.legend(h1+h2, l1+l2, loc='lower center',
+               bbox_to_anchor=(0.5, 1.02), ncol=2, frameon=True)
     plt.tight_layout(); savefig(fig, 'fig12_coverage_fairness')
     _fig_pbar.update(1)
     
     # ── fig13: Violin ──
-    vnames = ['RL-GACA', 'CFCA', 'SAA', 'Greedy', 'Popular Cache']
+    vnames = ['RL-CWCA', 'CFCA', 'SAA', 'Greedy', 'Popular Cache']
     vdata  = [sig_res[k] for k in vnames]   # 10 seeds each
     vcols  = [S[k]['color'] for k in vnames]
     fig, ax = plt.subplots(figsize=(9, 5.0))
@@ -1312,7 +1320,7 @@ if not _P13_ONLY:
                    s=28, zorder=5, alpha=0.75, edgecolors='white', lw=0.4)
     ax.set_xticks(range(len(vnames))); ax.set_xticklabels(vnames, rotation=12, ha='right')
     ax.set_ylabel('Offloading Ratio')
-    ax.set_title('Seed Variance — Offloading Ratio\n(cache=1 GB, γ=0.6, 10 seeds)')
+    ax.set_title('Offloading Ratio Distribution across Seeds')
     plt.tight_layout(); savefig(fig, 'fig13_violin')
     _fig_pbar.update(1)
     
@@ -1322,7 +1330,7 @@ if not _P13_ONLY:
     sorted_ct = np.sort(all_ct)
     cdf = np.arange(1, len(sorted_ct)+1) / len(sorted_ct)
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
-    ax1.plot(sorted_ct, cdf, color=S['RL-GACA']['color'], lw=2.2)
+    ax1.plot(sorted_ct, cdf, color=S['RL-CWCA']['color'], lw=2.2)
     ax1.axvline(np.mean(all_ct), color='gray', ls='--', lw=1.5,
                 label=f'Mean={np.mean(all_ct):.0f}s')
     ax1.axvline(np.median(all_ct), color='#9467BD', ls=':', lw=1.5,
@@ -1343,13 +1351,13 @@ if not _P13_ONLY:
     for nm in SHOW:
         ax.plot(BITRATES, brate_res[nm], label=nm, **lp(nm))
     ax.set_xlabel('Bit Rate (MB/s)'); ax.set_ylabel('Offloading Ratio')
-    ax.set_title('Offloading vs Bit Rate\n(cache=1 GB, γ=0.6)')
+    ax.set_title('Offloading Ratio vs D2D Bit Rate')
     ax.legend(ncol=2); plt.tight_layout(); savefig(fig, 'fig15_off_bitrate')
     _fig_pbar.update(1)
     
     # ── fig16: 5-metric radar ──
     print('>>> fig16_radar')
-    RADAR_ALGOS = ['RL-GACA', 'CFCA', 'SAA', 'Greedy', 'Popular Cache']
+    RADAR_ALGOS = ['RL-CWCA', 'CFCA', 'SAA', 'Greedy', 'Popular Cache']
     METRICS_R = ['Offloading', 'CHR', 'Cache\nUtil.', 'D2D\nSuccess', 'Local\nHit Rate']
     radar_vals = {}
     for a in RADAR_ALGOS:
@@ -1375,7 +1383,7 @@ if not _P13_ONLY:
     
     # ── fig17: Violin — both Offloading and CHR ──
     print('>>> fig17_violin_both')
-    vnames_h = ['RL-GACA', 'CFCA', 'SAA', 'Greedy', 'Popular Cache']
+    vnames_h = ['RL-CWCA', 'CFCA', 'SAA', 'Greedy', 'Popular Cache']
     vcols_h  = [S[k]['color'] for k in vnames_h]
     fig, (av1, av2) = plt.subplots(1, 2, figsize=(14, 5))
     for ax, metric, title in [(av1, 'off', 'Offloading Ratio'), (av2, 'chr', 'Cache Hit Ratio')]:
@@ -1390,8 +1398,8 @@ if not _P13_ONLY:
                        s=30, zorder=5, alpha=0.75, edgecolors='white', lw=0.4)
         ax.set_xticks(range(len(vnames_h)))
         ax.set_xticklabels(vnames_h, rotation=12, ha='right')
-        ax.set_ylabel(title); ax.set_title(f'{title} Distribution\n(3 seeds)')
-    plt.suptitle('Seed Variance: Offloading and CHR', fontsize=14)
+        ax.set_ylabel(title); ax.set_title(f'{title} Distribution across Seeds')
+    plt.suptitle('Robustness: Offloading and CHR across Seeds', fontsize=16, fontweight='bold')
     plt.tight_layout(); savefig(fig, 'fig17_violin_both')
     _fig_pbar.update(1)
     
@@ -1399,19 +1407,19 @@ if not _P13_ONLY:
     print('>>> fig18_hp_episodes')
     cfca_ref = np.mean(main_res['CFCA']['off'])
     fig, ax = plt.subplots(figsize=(8, 5))
-    ax.plot(EP_VALS, hp_offs, 's-', color=S['RL-GACA']['color'], lw=2.5, ms=10)
+    ax.plot(EP_VALS, hp_offs, 's-', color=S['RL-CWCA']['color'], lw=2.5, ms=10)
     ax.axhline(cfca_ref, color=S['CFCA']['color'], ls='--', lw=1.8, label='CFCA baseline')
     for ep_x, ep_y in zip(EP_VALS, hp_offs):
-        ax.text(ep_x, ep_y+0.003, f'{ep_y:.4f}', ha='center', va='bottom', fontsize=10)
+        ax.text(ep_x, ep_y+0.003, f'{ep_y:.4f}', ha='center', va='bottom', fontsize=12)
     ax.set_xlabel('DQN Training Episodes'); ax.set_ylabel('Offloading Ratio')
-    ax.set_title('HP Sensitivity: Training Episodes\n(cache=1 GB, γ=0.6)')
+    ax.set_title('Hyperparameter Sensitivity: Number of Training Episodes')
     ax.legend(); plt.tight_layout(); savefig(fig, 'fig18_hp_episodes')
     _fig_pbar.update(1)
     
     # ── fig19: NNPM (net profit margin vs cache size) ──
     print('>>> fig19_nnpm')
     fig, ax = plt.subplots(figsize=(8.5, 5.5))
-    for nm in ['RL-GACA', 'CFCA', 'SAA', 'Greedy', 'Popular Cache']:
+    for nm in ['RL-CWCA', 'CFCA', 'SAA', 'Greedy', 'Popular Cache']:
         ax.plot(CACHE_SIZES, nnpm_res[nm], label=nm, **lp(nm))
     ax.axhline(0, color='gray', ls='--', alpha=0.5, lw=1)
     ax.set_xlabel('Cache Size (MB)'); ax.set_ylabel('Net Profit Margin (%)')
@@ -1421,7 +1429,7 @@ if not _P13_ONLY:
     
     # ── fig20: Deployment time efficiency ──
     print('>>> fig20_efficiency')
-    TIME_ALGOS = ['RL-GACA', 'CFCA', 'SAA', 'Greedy', 'Popular Cache']
+    TIME_ALGOS = ['RL-CWCA', 'CFCA', 'SAA', 'Greedy', 'Popular Cache']
     mean_times = [np.mean(DEPLOY_TIMES.get(a, [0]))*1000 for a in TIME_ALGOS]
     fig, ax = plt.subplots(figsize=(8, 5))
     bars = ax.bar(TIME_ALGOS, mean_times,
@@ -1429,7 +1437,7 @@ if not _P13_ONLY:
                   edgecolor='black', lw=0.7, alpha=0.88)
     for bar, t in zip(bars, mean_times):
         ax.text(bar.get_x()+bar.get_width()/2, t+0.5,
-                f'{t:.1f} ms', ha='center', va='bottom', fontsize=10, fontweight='bold')
+                f'{t:.1f} ms', ha='center', va='bottom', fontsize=12, fontweight='bold')
     ax.set_ylabel('Deployment Time (ms)')
     ax.set_title('Deployment Decision Time\n(single call, 172 devices)')
     plt.tight_layout(); savefig(fig, 'fig20_efficiency')
@@ -1438,8 +1446,8 @@ if not _P13_ONLY:
     # ── fig21: DRL improvement bars at 2 GB ──
     print('>>> fig21_drl_improvement_2gb')
     DRL_SHOW = ['DQN-Interest', 'DQN-Weak', 'DQN-Pop', 'CFCA', 'SAA']
-    rl_off_2gb = np.mean(cache_res['RL-GACA'][2000]['off'])
-    rl_chr_2gb = np.mean(cache_res['RL-GACA'][2000]['chr'])
+    rl_off_2gb = np.mean(cache_res['RL-CWCA'][2000]['off'])
+    rl_chr_2gb = np.mean(cache_res['RL-CWCA'][2000]['chr'])
     imp_o2 = [(rl_off_2gb - np.mean(cache_res[b][2000]['off'])) /
                max(np.mean(cache_res[b][2000]['off']), 1e-9) * 100 for b in DRL_SHOW]
     imp_c2 = [(rl_chr_2gb - np.mean(cache_res[b][2000]['chr'])) /
@@ -1453,11 +1461,11 @@ if not _P13_ONLY:
     for bar in list(b1)+list(b2):
         h = bar.get_height()
         ax.text(bar.get_x()+bar.get_width()/2, h+0.4,
-                f'{h:.1f}%', ha='center', va='bottom', fontsize=9.5, fontweight='bold')
+                f'{h:.1f}%', ha='center', va='bottom', fontsize=11.5, fontweight='bold')
     ax.set_xticks(x); ax.set_xticklabels(DRL_SHOW, rotation=12, ha='right')
     ax.set_ylabel('Improvement (%)'); ax.legend()
     ax.axhline(0, color='gray', lw=0.8)
-    ax.set_title('RL-GACA vs Baselines at 2 GB Cache\n(3 seeds, γ=0.6)')
+    ax.set_title('RL-CWCA vs Baselines at 2 GB Cache')
     plt.tight_layout(); savefig(fig, 'fig21_drl_improvement_2gb')
     _fig_pbar.update(1)
     
@@ -1507,13 +1515,13 @@ if not _P13_ONLY:
     # Table 4: Significance (10 seeds)
     sig_rows = []
     for b in SIG_NAMES[1:]:
-        i_rl = SIG_NAMES.index('RL-GACA'); i_b = SIG_NAMES.index(b)
+        i_rl = SIG_NAMES.index('RL-CWCA'); i_b = SIG_NAMES.index(b)
         p = SIG_P[i_rl, i_b]
-        u, _ = stats.mannwhitneyu(sig_res['RL-GACA'], sig_res[b], alternative='two-sided')
-        n1, n2 = len(sig_res['RL-GACA']), len(sig_res[b])
+        u, _ = stats.mannwhitneyu(sig_res['RL-CWCA'], sig_res[b], alternative='two-sided')
+        n1, n2 = len(sig_res['RL-CWCA']), len(sig_res[b])
         r_rb = abs(1 - 2*u / (n1*n2))
         sig = '***' if p<0.001 else ('**' if p<0.01 else ('*' if p<0.05 else 'ns'))
-        sig_rows.append({'Comparison': f'RL-GACA vs {b}',
+        sig_rows.append({'Comparison': f'RL-CWCA vs {b}',
                          'U': f'{u:.0f}', 'p': f'{p:.4f}',
                          'Significance': sig, 'r': f'{r_rb:.3f}'})
     pd.DataFrame(sig_rows).to_csv(f'{TD}/table4_significance.csv', index=False)
@@ -1521,7 +1529,7 @@ if not _P13_ONLY:
     
     # Table 5: Controller comparison
     ctrl_rows = []
-    for nm in ['RL-GACA','DQN (gravity)','PPO','CFCA']:
+    for nm in ['RL-CWCA','DQN (CW score)','PPO','CFCA']:
         m1,s1 = ctrl_res[1000][nm]; m2,s2 = ctrl_res[2000][nm]
         ctrl_rows.append({'Controller': nm,
                           'Off@1GB': f'{m1:.4f}±{s1:.4f}',
@@ -1540,41 +1548,41 @@ if not _P13_ONLY:
     
     # Table 7: Contention sensitivity
     coll_rows = [{'rho': cf,
-                  'RL-GACA': f'{coll_res["RL-GACA"][i]:.4f}',
+                  'RL-CWCA': f'{coll_res["RL-CWCA"][i]:.4f}',
                   'CFCA':    f'{coll_res["CFCA"][i]:.4f}',
                   'SAA':     f'{coll_res["SAA"][i]:.4f}',
-                  'Delta_RL_CFCA': f'{(coll_res["RL-GACA"][i]-coll_res["CFCA"][i])/coll_res["CFCA"][i]*100:+.1f}%'}
+                  'Delta_RL_CFCA': f'{(coll_res["RL-CWCA"][i]-coll_res["CFCA"][i])/coll_res["CFCA"][i]*100:+.1f}%'}
                  for i, cf in enumerate(COLL_FACTORS)]
     pd.DataFrame(coll_rows).to_csv(f'{TD}/table7_contention.csv', index=False)
     print("  [OK] table7_contention.csv")
     
     # Table 8: Aligned-threshold comparison across cache sizes (reviewer request)
-    # Shows RL-GACA (aligned, I>=0.05) vs DQN-Interest at same threshold
+    # Shows RL-CWCA (aligned, I>=0.05) vs DQN-Interest at same threshold
     aln_rows = []
     for cm_ in [500, 1000, 1500, 2000]:
-        rl_aln  = np.mean(cache_res['RL-GACA-aligned'][cm_]['off'])
-        rl_full = np.mean(cache_res['RL-GACA'][cm_]['off'])
+        rl_aln  = np.mean(cache_res['RL-CWCA-aligned'][cm_]['off'])
+        rl_full = np.mean(cache_res['RL-CWCA'][cm_]['off'])
         dqi     = np.mean(cache_res['DQN-Interest'][cm_]['off'])
         lead_pct = (rl_aln - dqi) / max(dqi, 1e-9) * 100
         aln_rows.append({
             'Cache_MB':          cm_,
-            'RL-GACA (full, 0.005)':     f'{rl_full:.4f}',
-            'RL-GACA (aligned, 0.05)':   f'{rl_aln:.4f}',
+            'RL-CWCA (full, 0.005)':     f'{rl_full:.4f}',
+            'RL-CWCA (aligned, 0.05)':   f'{rl_aln:.4f}',
             'DQN-Interest (0.05)':       f'{dqi:.4f}',
             'Lead_aligned_vs_DQNInt_%':  f'{lead_pct:+.1f}%',
         })
     pd.DataFrame(aln_rows).to_csv(f'{TD}/table8_aligned_comparison.csv', index=False)
     print("  [OK] table8_aligned_comparison.csv")
     print()
-    print("  Aligned threshold (RL-GACA, I>=0.05) vs DQN-Interest at matched threshold:")
+    print("  Aligned threshold (RL-CWCA, I>=0.05) vs DQN-Interest at matched threshold:")
     for row in aln_rows:
-        print(f"    {row['Cache_MB']} MB: RL-GACA-aligned={row['RL-GACA (aligned, 0.05)']}"
+        print(f"    {row['Cache_MB']} MB: RL-CWCA-aligned={row['RL-CWCA (aligned, 0.05)']}"
               f"  DQN-Interest={row['DQN-Interest (0.05)']}"
               f"  Lead={row['Lead_aligned_vs_DQNInt_%']}")
     
     # Summary markdown
     with open('results/summary.md', 'w', encoding='utf-8') as f:
-        f.write(f"# RL-GACA Results Summary\n\n")
+        f.write(f"# RL-CWCA Results Summary\n\n")
         f.write(f"Generated: {_time.strftime('%Y-%m-%d %H:%M')}\n\n")
         f.write(f"## Main Results (1 GB, γ=0.6, 3 seeds)\n\n")
         f.write("| Algorithm | Offloading | CHR |\n|---|---|---|\n")
@@ -1582,11 +1590,11 @@ if not _P13_ONLY:
             om = np.mean(main_res[nm]['off']); cm_ = np.mean(main_res[nm]['chr'])
             f.write(f"| {nm} | {om:.4f} | {cm_:.4f} |\n")
         f.write(f"\n## Aligned Threshold Comparison (I_uc >= 0.05, matched)\n\n")
-        f.write("| Cache (MB) | RL-GACA full | RL-GACA aligned | DQN-Interest | Lead (aligned) |\n")
+        f.write("| Cache (MB) | RL-CWCA full | RL-CWCA aligned | DQN-Interest | Lead (aligned) |\n")
         f.write("|---|---|---|---|---|\n")
         for row in aln_rows:
-            f.write(f"| {row['Cache_MB']} | {row['RL-GACA (full, 0.005)']} "
-                    f"| {row['RL-GACA (aligned, 0.05)']} "
+            f.write(f"| {row['Cache_MB']} | {row['RL-CWCA (full, 0.005)']} "
+                    f"| {row['RL-CWCA (aligned, 0.05)']} "
                     f"| {row['DQN-Interest (0.05)']} "
                     f"| {row['Lead_aligned_vs_DQNInt_%']} |\n")
         f.write(f"\n## Speed Constraint Ablation (bug-fixed)\n\n")
@@ -1614,9 +1622,9 @@ if not _P13_ONLY:
 
 else:
     # _P13_ONLY mode: initialize stubs so _rm.complete_run doesn't KeyError
-    MAIN_ALGOS  = ['RL-GACA', 'DQN-Interest', 'DQN-Weak', 'DQN-Pop',
+    MAIN_ALGOS  = ['RL-CWCA', 'DQN-Interest', 'DQN-Weak', 'DQN-Pop',
                    'CFCA', 'SAA', 'Greedy', 'Popular Cache']
-    SWEEP_ALGOS = MAIN_ALGOS + ['RL-GACA-aligned']
+    SWEEP_ALGOS = MAIN_ALGOS + ['RL-CWCA-aligned']
     main_res    = {nm: {'off': [0.0], 'chr': [0.0]} for nm in MAIN_ALGOS}
     cache_res   = {a: {sz: {'off': [0.0]} for sz in [500,750,1000,1500,2000]}
                    for a in SWEEP_ALGOS}
@@ -1668,9 +1676,9 @@ if _TDRIVE_NPZ.exists():
             Raw value is kept in self_.pri_raw for diagnostics.
 
         Why: T-Drive has sparse contacts so raw π̄_u ≈ 0.01–0.08.
-        The gravity pull term (1 + 5*π̄_u) spans only 1.05–1.40 (1.33×)
+        The CW pull term (1 + 5*π̄_u) spans only 1.05–1.40 (1.33×)
         instead of Marylebone's 1.25–5.00 (4×).  Normalising restores
-        discriminative power without changing the gravity formula.
+        discriminative power without changing the CW score formula.
         """
         def __init__(self_, F, gm, cmb, fmb, br, seed=42, coll_factor=1.0):
             rng = np.random.RandomState(seed)
@@ -1703,7 +1711,7 @@ if _TDRIVE_NPZ.exists():
             self_.pri     = norm_pri(raw_pri)        # ← normalised [0,1]
 
     # ── Zero-shot: Marylebone-trained weights on T-Drive topology ──
-    XFER_ALGOS = ['RL-GACA', 'CFCA', 'SAA', 'Greedy', 'Popular Cache']
+    XFER_ALGOS = ['RL-CWCA', 'CFCA', 'SAA', 'Greedy', 'Popular Cache']
     xfer_res   = {a: defaultdict(list) for a in XFER_ALGOS}
     xfer_cache = [500, 1000, 2000]
 
@@ -1723,17 +1731,17 @@ if _TDRIVE_NPZ.exists():
                 xfer_res[name][cm].append(r['off'])
 
     # ── Fine-tune: 20 A2C episodes on T-Drive topology ──
-    print("  Retraining RL-GACA on T-Drive topology (20 eps fine-tune)...")
+    print("  Retraining RL-CWCA on T-Drive topology (20 eps fine-tune)...")
     _sc_ft = SimTDrive(200, .6, 1000, 60, 1, seed=GLOBAL_SEED)
-    net_ft, _ = train_a2c(_sc_ft, 20, b_gravity, 'full', o_pri,
-                           seed=GLOBAL_SEED, desc='RL-GACA-TDrive-FT')
-    agents['RL-GACA-TDrive-FT'] = (net_ft, b_gravity, 'full', o_pri)
+    net_ft, _ = train_a2c(_sc_ft, 20, b_cw_score, 'full', o_pri,
+                           seed=GLOBAL_SEED, desc='RL-CWCA-TDrive-FT')
+    agents['RL-CWCA-TDrive-FT'] = (net_ft, b_cw_score, 'full', o_pri)
 
     xfer_ft = defaultdict(list)
     for sd in tqdm(MAIN_SEEDS, desc='  Fine-tune eval',
                    leave=False, ncols=60):
         sc = SimTDrive(200, .6, 1000, 60, 1, seed=sd)
-        deploy(sc, net_ft, b_gravity, 'full', o_pri)
+        deploy(sc, net_ft, b_cw_score, 'full', o_pri)
         xfer_ft['off'].append(sc.exchange()['off'])
 
     # ── Diagnostic: show what norm_pri actually did ──
@@ -1759,11 +1767,11 @@ if _TDRIVE_NPZ.exists():
     for name in XFER_ALGOS:
         zs   = np.mean(xfer_res[name][1000])
         lead = (zs - cfca_zs) / max(cfca_zs, 1e-9) * 100
-        note = '← norm_pri active' if name == 'RL-GACA' else ''
+        note = '← norm_pri active' if name == 'RL-CWCA' else ''
         print(f"  {name:<28} {zs:.4f}      {lead:+.1f}%        {note}")
     ft_m    = np.mean(xfer_ft['off'])
     lead_ft = (ft_m - cfca_zs) / max(cfca_zs, 1e-9) * 100
-    print(f"  {'RL-GACA (fine-tune, norm)':<28} {ft_m:.4f}      {lead_ft:+.1f}%"
+    print(f"  {'RL-CWCA (fine-tune, norm)':<28} {ft_m:.4f}      {lead_ft:+.1f}%"
           f"        ← retrained with norm_pri")
 
     # ── Table 9: transfer across cache sizes ──
@@ -1773,10 +1781,10 @@ if _TDRIVE_NPZ.exists():
         for name in XFER_ALGOS:
             row[name] = f"{np.mean(xfer_res[name][cm]):.4f}"
         cf = np.mean(xfer_res['CFCA'][cm])
-        rl = np.mean(xfer_res['RL-GACA'][cm])
-        row['RL-GACA_ft_norm@1GB'] = f"{ft_m:.4f}" if cm == 1000 else '-'
-        row['Lead_RL-GACA_vs_CFCA_%']    = f'{(rl-cf)/max(cf,1e-9)*100:+.1f}%'
-        row['Lead_RL-GACA-ft_vs_CFCA_%'] = (
+        rl = np.mean(xfer_res['RL-CWCA'][cm])
+        row['RL-CWCA_ft_norm@1GB'] = f"{ft_m:.4f}" if cm == 1000 else '-'
+        row['Lead_RL-CWCA_vs_CFCA_%']    = f'{(rl-cf)/max(cf,1e-9)*100:+.1f}%'
+        row['Lead_RL-CWCA-ft_vs_CFCA_%'] = (
             f'{(ft_m-cf)/max(cf,1e-9)*100:+.1f}%' if cm == 1000 else '-')
         row['norm_pri_applied'] = 'yes'
         xfer_rows.append(row)
@@ -1790,8 +1798,8 @@ if _TDRIVE_NPZ.exists():
         'norm_pri':                 'enabled',
         'pull_ratio_raw':           f'{_pull_raw.max()/_pull_raw.min():.2f}x',
         'pull_ratio_norm':          f'{_pull_norm.max()/_pull_norm.min():.2f}x',
-        'rl_gaca_zero_shot_1gb':    f"{np.mean(xfer_res['RL-GACA'][1000]):.4f}",
-        'rl_gaca_finetune_norm_1gb':f"{ft_m:.4f}",
+        'rl_cwca_zero_shot_1gb':    f"{np.mean(xfer_res['RL-CWCA'][1000]):.4f}",
+        'rl_cwca_finetune_norm_1gb':f"{ft_m:.4f}",
         'cfca_1gb':                 f"{np.mean(xfer_res['CFCA'][1000]):.4f}",
     })
 
@@ -1808,10 +1816,10 @@ else:
 # ── Finalise run record ────────────────────────────────────────
 if not _P13_ONLY:
     _rm.complete_run(RUN_DIR, results_summary={
-        'rl_gaca_1gb':     f"{np.mean(main_res['RL-GACA']['off']):.4f}",
-        'rl_gaca_2gb':     f"{np.mean(cache_res['RL-GACA'][2000]['off']):.4f}",
-        'rl_gaca_aligned_1gb': f"{np.mean(cache_res['RL-GACA-aligned'][1000]['off']):.4f}",
-        'rl_gaca_aligned_2gb': f"{np.mean(cache_res['RL-GACA-aligned'][2000]['off']):.4f}",
+        'rl_cwca_1gb':     f"{np.mean(main_res['RL-CWCA']['off']):.4f}",
+        'rl_cwca_2gb':     f"{np.mean(cache_res['RL-CWCA'][2000]['off']):.4f}",
+        'rl_cwca_aligned_1gb': f"{np.mean(cache_res['RL-CWCA-aligned'][1000]['off']):.4f}",
+        'rl_cwca_aligned_2gb': f"{np.mean(cache_res['RL-CWCA-aligned'][2000]['off']):.4f}",
         'figures_dir':     FD,
         'tables_dir':      TD,
     })
