@@ -55,7 +55,7 @@ Zero-shot beats CFCA at all three tested cache sizes. Cold-start retraining cost
 
 ```
 rl-cwca/
-├── rlcwca_main_v6_a2c.py    # Complete experimental pipeline (all phases)
+├── rlcwca_main.py    # Complete experimental pipeline (all phases)
 ├── fetch_tdrive.py           # T-Drive dataset downloader and contact extractor
 ├── results/
 │   ├── sumo_sim/
@@ -118,7 +118,7 @@ The file contains:
 ### Step 2 — Run all phases (Marylebone)
 
 ```bash
-python rlcwca_main_v6_a2c.py
+python rlcwca_main.py
 ```
 
 This runs all phases sequentially and writes results to a timestamped directory under `results/runs/`. Typical total runtime: **~12 minutes** on a single CPU core.
