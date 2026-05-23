@@ -147,7 +147,7 @@ This runs all phases sequentially and writes results to a timestamped directory 
 python fetch_tdrive.py --n-taxis 200 --out results/tdrive/tdrive_contact_data.npz
 
 # Run transfer phase using checkpoint from Step 2
-python rlcwca_main_v6_a2c.py --transfer
+python rlcwca_main.py --transfer
 ```
 
 `fetch_tdrive.py` downloads the Microsoft Research T-Drive GPS dataset (no registration required), extracts contact events using the same 120 m radio range and 30% fragment threshold as the Marylebone model, and saves the NPZ.
